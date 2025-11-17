@@ -1,0 +1,149 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+
+#define KEYLEN 24    
+#define IVLEN  8     
+void print_hex(const unsigned char *buf, int len) {
+    for (int i = 0; i < len; i++) printf("%02x", buf[i]);
+    printf("\n");
+}
+int hex2bin(const char *hex, unsigned char **out) {
+    size_t hlen = strlen(hex);
+    if (hlen % 2 != 0) return -1;
+    size_t blen = hlen / 2;
+    *out = malloc(blen);
+    if (!*out) return -1;
+    for (size_t i = 0; i < blen; i++) {
+        unsigned int byte;
+        if (sscanf(hex + 2*i, "%2x", &byte) != 1) {
+            free(*out);
+            return -1;
+        }
+        (*out)[i] = (unsigned char)byte;
+    }
+    return (int)blen;
+}
+
+// Encrypt plaintext -> (IV||ciphertext) bytes returned, outlen is length. Caller must free.
+unsigned char *encrypt_3des_cbc(const unsigned char *plaintext, int plen,
+                                const unsigned char key[KEYLEN], int *outlen) {
+    EVP_CIPHER_CTX *ctx = NULL;
+    unsigned char iv[IVLEN];
+    unsigned char *cipher = NULL;
+    int len = 0, clen = 0;
+    if (RAND_bytes(iv, IVLEN) != 1) {
+        fprintf(stderr, "RAND_bytes failed\n");
+        return NULL;
+    }
+
+    ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) goto err;
+
+    if (EVP_EncryptInit_ex(ctx, EVP_des_ede3_cbc(), NULL, key, iv) != 1) goto err;
+
+    cipher = malloc(IVLEN + plen + IVLEN);
+    if (!cipher) goto err;
+
+    memcpy(cipher, iv, IVLEN);
+    clen = IVLEN;
+    if (EVP_EncryptUpdate(ctx, cipher + clen, &len, plaintext, plen) != 1) goto err;
+    clen += len;
+
+    if (EVP_EncryptFinal_ex(ctx, cipher + clen, &len) != 1) goto err;
+    clen += len;
+
+    *outlen = clen;
+    EVP_CIPHER_CTX_free(ctx);
+    return cipher;
+
+err:
+    if (ctx) EVP_CIPHER_CTX_free(ctx);
+    if (cipher) free(cipher);
+    return NULL;
+}
+unsigned char *decrypt_3des_cbc(const unsigned char *in, int inlen,
+                                const unsigned char key[KEYLEN], int *outlen) {
+    if (inlen < IVLEN) return NULL;
+    EVP_CIPHER_CTX *ctx = NULL;
+    unsigned char iv[IVLEN];
+    unsigned char *pt = NULL;
+    int len = 0, plen = 0;
+    int clen = inlen - IVLEN;
+
+    memcpy(iv, in, IVLEN);
+
+    ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) goto err;
+
+    if (EVP_DecryptInit_ex(ctx, EVP_des_ede3_cbc(), NULL, key, iv) != 1) goto err;
+
+    pt = malloc(clen + IVLEN);
+    if (!pt) goto err;
+
+    if (EVP_DecryptUpdate(ctx, pt, &len, in + IVLEN, clen) != 1) goto err;
+    plen += len;
+
+    if (EVP_DecryptFinal_ex(ctx, pt + plen, &len) != 1) {
+        goto err;
+    }
+    plen += len;
+
+    *outlen = plen;
+    EVP_CIPHER_CTX_free(ctx);
+    return pt;
+
+err:
+    if (ctx) EVP_CIPHER_CTX_free(ctx);
+    if (pt) free(pt);
+    return NULL;
+}
+
+int main(int argc, char **argv) {
+    if (argc < 3) {
+        fprintf(stderr, "Usage:\n  %s encrypt \"plaintext string\"\n  %s decrypt hex_IVCIPHERTEXT\n", argv[0], argv[0]);
+        return 1;
+    }
+    unsigned char key[KEYLEN] = {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xdc,0xba,0x98,0x76,0x54,0x32,0x10,
+        0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77
+    };
+
+    if (strcmp(argv[1], "encrypt") == 0) {
+        const char *plaintext = argv[2];
+        int outlen = 0;
+        unsigned char *out = encrypt_3des_cbc((const unsigned char*)plaintext, (int)strlen(plaintext), key, &outlen);
+        if (!out) {
+            fprintf(stderr, "Encryption failed\n");
+            return 1;
+        }
+        print_hex(out, outlen);
+        free(out);
+        return 0;
+    } else if (strcmp(argv[1], "decrypt") == 0) {
+        unsigned char *inbuf = NULL;
+        int inlen = hex2bin(argv[2], &inbuf);
+        if (inlen <= 0) {
+            fprintf(stderr, "Invalid hex input\n");
+            return 1;
+        }
+        int outlen = 0;
+        unsigned char *pt = decrypt_3des_cbc(inbuf, inlen, key, &outlen);
+        if (!pt) {
+            fprintf(stderr, "Decryption failed (bad key/IV or corrupted ciphertext)\n");
+            free(inbuf);
+            return 1;
+        }
+        fwrite(pt, 1, outlen, stdout); printf("\n");
+        free(pt);
+        free(inbuf);
+        return 0;
+    } else {
+        fprintf(stderr, "Unknown command: %s\n", argv[1]);
+        return 1;
+    }
+}
