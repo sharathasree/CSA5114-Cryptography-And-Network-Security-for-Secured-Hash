@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
+
+#define MAX_TEXT 5000
+
+double englishFreq[26] =
+{
+    8.12, 1.49, 2.71, 4.32, 12.02, 2.30, 2.03, 
+    5.92, 7.31, 0.10, 0.69, 3.98, 2.61, 6.95,
+    7.68, 1.82, 0.11, 6.02, 6.28, 9.10, 2.88,
+    1.11, 2.09, 0.17, 2.11, 0.07
+};
+double chiSquared(char *text, int shift)
+{
+    int count[26] = {0};
+    int total = 0;
+    for (int i = 0; text[i]; i++) {
+        if (isalpha(text[i])) {
+            char c = toupper(text[i]);
+            int p = ((c - 'A') - shift + 26) % 26;
+            count[p]++;
+            total++;
+        }
+    }
+
+    double chi = 0.0;
+    for (int i = 0; i < 26; i++) {
+        double observed = count[i];
+        double expected = englishFreq[i] * total / 100.0;
+        chi += (observed - expected) * (observed - expected) / expected;
+    }
+
+    return chi;
+}
+void decryptShift(char *ct, int shift, char *out)
+{
+    for (int i = 0; ct[i]; i++) {
+        if (isalpha(ct[i])) {
+            char c = toupper(ct[i]);
+            int p = ((c - 'A') - shift + 26) % 26;
+            out[i] = 'A' + p;
+        } else {
+            out[i] = ct[i];
+        }
+    }
+    out[strlen(ct)] = '\0';
+}
+
+int main()
+{
+    char ciphertext[MAX_TEXT];
+    char plaintext[MAX_TEXT];
+    int topN;
+
+    printf("Enter ciphertext:\n");
+    fgets(ciphertext, MAX_TEXT, stdin);
+
+    printf("How many top plaintext guesses do you want? ");
+    scanf("%d", &topN);
+
+    double score[26];
+    int shiftIndex[26];
+
+    for (int i = 0; i < 26; i++) {
+        score[i] = chiSquared(ciphertext, i);
+        shiftIndex[i] = i;
+    }
+    for (int i = 0; i < 26; i++) {
+        for (int j = i + 1; j < 26; j++) {
+            if (score[j] < score[i]) {
+                double temp = score[i];
+                score[i] = score[j];
+                score[j] = temp;
+
+                int tmp = shiftIndex[i];
+                shiftIndex[i] = shiftIndex[j];
+                shiftIndex[j] = tmp;
+            }
+        }
+    }
+
+    printf("\n=== Top %d Most Likely Plaintexts ===\n", topN);
+    for (int i = 0; i < topN; i++) {
+        int shift = shiftIndex[i];
+        decryptShift(ciphertext, shift, plaintext);
+        printf("\nRank %d (Shift = %d, Score = %.2f):\n%s\n",
+               i + 1, shift, score[i], plaintext);
+    }
+
+    return 0;
+}
