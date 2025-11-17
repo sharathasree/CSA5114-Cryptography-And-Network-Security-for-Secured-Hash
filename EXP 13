@@ -1,0 +1,90 @@
+#include <stdio.h>
+#include <ctype.h>
+int charToNum(char c) {
+    return toupper(c) - 'A';
+}
+char numToChar(int n) {
+    return 'A' + (n % 26 + 26) % 26;
+}
+int modInverse(int a) {
+    a = (a % 26 + 26) % 26;
+    for(int x=1; x<26; x++)
+        if ((a * x) % 26 == 1) return x;
+    return -1;  
+}
+int invertMatrix(int a[2][2], int inv[2][2]) {
+    int det = (a[0][0]*a[1][1] - a[0][1]*a[1][0]) % 26;
+    det = (det + 26) % 26;
+    int detInv = modInverse(det);
+    if(detInv == -1) return 0; 
+
+    inv[0][0] =  detInv * a[1][1] % 26;
+    inv[0][1] = -detInv * a[0][1] % 26;
+    inv[1][0] = -detInv * a[1][0] % 26;
+    inv[1][1] =  detInv * a[0][0] % 26;
+
+    for(int i=0;i<2;i++)
+        for(int j=0;j<2;j++)
+            inv[i][j] = (inv[i][j] + 26) % 26;
+
+    return 1;
+}
+
+
+void multiply(int m[2][2], int v[2], int out[2]) {
+    out[0] = (m[0][0]*v[0] + m[0][1]*v[1]) % 26;
+    out[1] = (m[1][0]*v[0] + m[1][1]*v[1]) % 26;
+}
+
+void printMatrix(int m[2][2]) {
+    printf("[ %2d %2d ]\n[ %2d %2d ]\n",
+           m[0][0], m[0][1], m[1][0], m[1][1]);
+}
+
+int main() {
+
+    printf("\n=== Hill Cipher Known-Plaintext Attack Demo ===\n\n");
+
+
+    int P[2][2] = {
+        { charToNum('H'), charToNum('L') },
+        { charToNum('E'), charToNum('P') }
+    };
+
+    int C[2][2] = {
+        { charToNum('K'), charToNum('U') },
+        { charToNum('F'), charToNum('Z') }
+    };
+
+    printf("Known plaintext matrix P:\n");
+    printMatrix(P);
+
+    printf("\nKnown ciphertext matrix C:\n");
+    printMatrix(C);
+    int P_inv[2][2];
+    if(!invertMatrix(P, P_inv)) {
+        printf("ERROR: Plaintext matrix not invertible!\n");
+        return 1;
+    }
+
+    printf("\nInverse of plaintext matrix P^-1:\n");
+    printMatrix(P_inv);
+
+    int K[2][2];
+
+    for(int i=0;i<2;i++){
+        for(int j=0;j<2;j++){
+            K[i][j] = ( C[i][0]*P_inv[0][j] +
+                        C[i][1]*P_inv[1][j] ) % 26;
+            if(K[i][j] < 0) K[i][j] += 26;
+        }
+    }
+
+    printf("\nRecovered Hill Cipher Key K:\n");
+    printMatrix(K);
+
+    printf("\nThis shows that knowing only TWO plaintext–ciphertext pairs\n");
+    printf("is enough to fully recover the 2×2 Hill cipher key.\n");
+
+    return 0;
+}
