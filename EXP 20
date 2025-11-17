@@ -1,0 +1,86 @@
+#include <stdio.h>
+#include <string.h>
+#include <openssl/aes.h>
+#include <openssl/rand.h>
+
+#define BLK 16
+
+void print_hex(const char *label, unsigned char *buf, int len) {
+    printf("%s: ", label);
+    for (int i = 0; i < len; i++) printf("%02x", buf[i]);
+    printf("\n");
+}
+
+int main() {
+
+    unsigned char key[16] = "0123456789abcdef";
+    unsigned char iv[16]  = "fedcba9876543210";
+
+    unsigned char P[32] = "ABCDEFGHIJKLMNOPQRSTUVWX12345678";  
+    unsigned char C_ecb[32], C_cbc[32], D[32];
+
+    AES_KEY enc_key, dec_key;
+
+    AES_set_encrypt_key(key, 128, &enc_key);
+    AES_set_decrypt_key(key, 128, &dec_key);
+
+    printf("Original Plaintext Blocks:\n");
+    print_hex("P1", P, BLK);
+    print_hex("P2", P + BLK, BLK);
+    AES_ecb_encrypt(P,        C_ecb,     &enc_key, AES_ENCRYPT);
+    AES_ecb_encrypt(P + BLK,  C_ecb+BLK, &enc_key, AES_ENCRYPT);
+
+    printf("\nECB Ciphertext:\n");
+    print_hex("C1", C_ecb, BLK);
+    print_hex("C2", C_ecb+BLK, BLK);
+    unsigned char prev[16];
+    memcpy(prev, iv, 16);
+
+    for (int i = 0; i < BLK; i++) prev[i] ^= P[i];
+    AES_ecb_encrypt(prev, C_cbc, &enc_key, AES_ENCRYPT);
+
+    memcpy(prev, C_cbc, BLK);
+    for (int i = 0; i < BLK; i++) prev[i] ^= P[BLK + i];
+    AES_ecb_encrypt(prev, C_cbc + BLK, &enc_key, AES_ENCRYPT);
+
+    printf("\nCBC Ciphertext:\n");
+    print_hex("C1", C_cbc, BLK);
+    print_hex("C2", C_cbc+BLK, BLK);
+    unsigned char C_err[32];
+    memcpy(C_err, C_cbc, 32);
+    C_err[0] ^= 0x01;  // flip 1 bit in C1
+    unsigned char D_err[32];
+    unsigned char prev2[16];
+    memcpy(prev2, iv, BLK);
+
+    AES_ecb_encrypt(C_err, D_err, &dec_key, AES_DECRYPT);
+    for (int i = 0; i < BLK; i++) D_err[i] ^= iv[i];
+
+    AES_ecb_encrypt(C_err+BLK, D_err+BLK, &dec_key, AES_DECRYPT);
+    for (int i = 0; i < BLK; i++) D_err[BLK+i] ^= C_err[i];
+
+    printf("\nCBC Decryption After Bit Error in C1:\n");
+    print_hex("D1", D_err, BLK);
+    print_hex("D2", D_err+BLK, BLK);
+    unsigned char P_fault[32];
+    memcpy(P_fault, P, 32);
+    P_fault[0] ^= 0x01; // flip 1 bit in P1
+
+    unsigned char C_fault[32];
+    unsigned char prev3[16];
+    memcpy(prev3, iv, 16);
+
+    for (int i = 0; i < BLK; i++) prev3[i] ^= P_fault[i];
+    AES_ecb_encrypt(prev3, C_fault, &enc_key, AES_ENCRYPT);
+
+    memcpy(prev3, C_fault, BLK);
+
+    for (int i = 0; i < BLK; i++) prev3[i] ^= P_fault[BLK + i];
+    AES_ecb_encrypt(prev3, C_fault + BLK, &enc_key, AES_ENCRYPT);
+
+    printf("\nCBC Ciphertext After Bit Error in P1:\n");
+    print_hex("C1'", C_fault, BLK);
+    print_hex("C2'", C_fault+BLK, BLK);
+
+    return 0;
+}
