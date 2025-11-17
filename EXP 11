@@ -1,0 +1,12 @@
+#include <stdio.h>
+#include <math.h>
+
+int main() {
+    double log2_total = lgamma(26) / log(2.0);  // lgamma(n+1) = ln(n!)
+    printf("Total possible Playfair keys (ignoring equivalent keys) ≈ 2^%.2f\n", log2_total);
+    double log2_row5 = lgamma(6) / log(2.0); // 5! = gamma(6)
+    double log2_unique = log2_total - 5 * log2_row5;
+    printf("Effectively unique Playfair keys ≈ 2^%.2f\n", log2_unique);
+
+    return 0;
+}
