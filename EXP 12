@@ -1,0 +1,75 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+int charToNum(char c) {
+    return toupper(c) - 'A';
+}
+char numToChar(int n) {
+    return 'A' + (n % 26 + 26) % 26; 
+}
+int modInverse(int a, int m) {
+    a = a % m;
+    for (int x = 1; x < m; x++)
+        if ((a * x) % m == 1) return x;
+    return -1;
+}
+
+int main() {
+    char plaintext[] = "meet me at the usual place at ten rather than eight oclock";
+    int key[2][2] = {{9,4},{5,7}};
+    
+    char cleaned[1000];
+    int len = 0;
+    for (int i = 0; i < strlen(plaintext); i++) {
+        if (isalpha(plaintext[i])) cleaned[len++] = toupper(plaintext[i]);
+    }
+    if (len % 2 != 0) cleaned[len++] = 'X';
+    cleaned[len] = '\0';
+
+    printf("Cleaned plaintext: %s\n", cleaned);
+    char ciphertext[1000];
+    for (int i = 0; i < len; i += 2) {
+        int p1 = charToNum(cleaned[i]);
+        int p2 = charToNum(cleaned[i+1]);
+        int c1 = (key[0][0]*p1 + key[0][1]*p2) % 26;
+        int c2 = (key[1][0]*p1 + key[1][1]*p2) % 26;
+        ciphertext[i] = numToChar(c1);
+        ciphertext[i+1] = numToChar(c2);
+
+        // Show calculation
+        printf("Plain [%c%c] -> Numbers [%d %d] -> Cipher Numbers [%d %d] -> Cipher [%c%c]\n",
+            cleaned[i], cleaned[i+1], p1, p2, c1, c2, ciphertext[i], ciphertext[i+1]);
+    }
+    ciphertext[len] = '\0';
+    printf("\nCiphertext: %s\n", ciphertext);
+
+    // Decryption
+    int det = key[0][0]*key[1][1] - key[0][1]*key[1][0]; // determinant
+    det = (det % 26 + 26) % 26;
+    int det_inv = modInverse(det, 26);
+    if(det_inv == -1) {
+        printf("Key not invertible mod 26!\n");
+        return 1;
+    }
+    int inv[2][2];
+    inv[0][0] =  key[1][1]*det_inv %26;
+    inv[0][1] = (-key[0][1]*det_inv +26*26)%26;
+    inv[1][0] = (-key[1][0]*det_inv +26*26)%26;
+    inv[1][1] =  key[0][0]*det_inv %26;
+    char decrypted[1000];
+    for(int i=0;i<len;i+=2){
+        int c1 = charToNum(ciphertext[i]);
+        int c2 = charToNum(ciphertext[i+1]);
+        int p1 = (inv[0][0]*c1 + inv[0][1]*c2) %26;
+        int p2 = (inv[1][0]*c1 + inv[1][1]*c2) %26;
+        decrypted[i] = numToChar(p1);
+        decrypted[i+1] = numToChar(p2);
+
+        printf("Cipher [%c%c] -> Numbers [%d %d] -> Plain Numbers [%d %d] -> Plain [%c%c]\n",
+            ciphertext[i], ciphertext[i+1], c1, c2, p1, p2, decrypted[i], decrypted[i+1]);
+    }
+    decrypted[len]='\0';
+    printf("\nDecrypted plaintext: %s\n", decrypted);
+
+    return 0;
+}
