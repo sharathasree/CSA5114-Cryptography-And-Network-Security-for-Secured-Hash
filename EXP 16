@@ -1,0 +1,147 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
+#include <time.h>
+
+#define MAX_TEXT 10000
+#define NUM_QUADGRAMS 3892
+#define TOP_RESULTS 50
+
+typedef struct {
+    char quad[5];
+    double logp;
+} Quadgram;
+
+typedef struct {
+    double score;
+    char plaintext[MAX_TEXT];
+} Result;
+Quadgram quadgrams[NUM_QUADGRAMS] = {
+    {"TION", -3.56}, {"THER", -3.78}, {"HERE", -4.01}, {"ATIO", -4.15},
+    {"THIS", -4.21}, {"CONT", -4.25}, {"ENTE", -4.28}, {"MENT", -4.33},
+    {"IONS", -4.35}, {"ALLY", -4.37}, {"NING", -4.40}, {"COMP", -4.43},
+  
+};
+double scoreQuadgrams(char *text) {
+    double score = 0.0;
+    int len = strlen(text);
+    for (int i = 0; i < len - 4; i++) {
+        char quad[5];
+        strncpy(quad, text + i, 4);
+        quad[4] = '\0';
+
+        for (int j = 0; j < 4; j++)
+            quad[j] = toupper(quad[j]);
+
+        int found = 0;
+        for (int k = 0; k < NUM_QUADGRAMS; k++) {
+            if (strcmp(quad, quadgrams[k].quad) == 0) {
+                score += quadgrams[k].logp;
+                found = 1;
+                break;
+            }
+        }
+        if (!found) score += -10; // penalty
+    }
+    return score;
+}
+void applyKey(char *ct, char *pt, char key[26]) {
+    for (int i = 0; ct[i]; i++) {
+        if (isalpha(ct[i])) {
+            pt[i] = key[toupper(ct[i]) - 'A'];
+        } else pt[i] = ct[i];
+    }
+    pt[strlen(ct)] = '\0';
+}
+void randomKey(char key[26]) {
+    for (int i = 0; i < 26; i++)
+        key[i] = 'A' + i;
+
+    for (int i = 0; i < 26; i++) {
+        int j = rand() % 26;
+        char tmp = key[i];
+        key[i] = key[j];
+        key[j] = tmp;
+    }
+}
+double optimizeKey(char *ct, char bestPlaintext[MAX_TEXT], char bestKey[26]) {
+    char currentKey[26], newKey[26];
+    char currentPlain[MAX_TEXT], newPlain[MAX_TEXT];
+
+    randomKey(currentKey);
+    memcpy(newKey, currentKey, 26);
+
+    applyKey(ct, currentPlain, currentKey);
+    double currentScore = scoreQuadgrams(currentPlain);
+    double bestScore = currentScore;
+    strcpy(bestPlaintext, currentPlain);
+    memcpy(bestKey, currentKey, 26);
+
+    for (int iter = 0; iter < 50000; iter++) {
+        memcpy(newKey, currentKey, 26);
+
+        int a = rand() % 26;
+        int b = rand() % 26;
+        char tmp = newKey[a];
+        newKey[a] = newKey[b];
+        newKey[b] = tmp;
+
+        applyKey(ct, newPlain, newKey);
+        double newScore = scoreQuadgrams(newPlain);
+
+        if (newScore > currentScore) {
+            memcpy(currentKey, newKey, 26);
+            currentScore = newScore;
+
+            if (newScore > bestScore) {
+                bestScore = newScore;
+                strcpy(bestPlaintext, newPlain);
+                memcpy(bestKey, newKey, 26);
+            }
+        }
+    }
+
+    return bestScore;
+}
+
+int main() {
+    srand(time(NULL));
+    char ciphertext[MAX_TEXT];
+
+    printf("Enter ciphertext:\n");
+    fgets(ciphertext, MAX_TEXT, stdin);
+
+    int topN;
+    printf("How many top plaintext guesses? ");
+    scanf("%d", &topN);
+    if (topN > TOP_RESULTS) topN = TOP_RESULTS;
+
+    Result results[TOP_RESULTS];
+    for (int i = 0; i < topN; i++) results[i].score = -1e9;
+
+    for (int try = 0; try < 80; try++) {
+        char bestPT[MAX_TEXT], bestKey[26];
+        double score = optimizeKey(ciphertext, bestPT, bestKey);
+
+        for (int i = 0; i < topN; i++) {
+            if (score > results[i].score) {
+                for (int j = topN - 1; j > i; j--) {
+                    results[j] = results[j - 1];
+                }
+                results[i].score = score;
+                strcpy(results[i].plaintext, bestPT);
+                break;
+            }
+        }
+    }
+
+    printf("\n=== Top %d plaintext guesses ===\n\n", topN);
+    for (int i = 0; i < topN; i++) {
+        printf("Rank %d (score %.2f):\n%s\n\n",
+            i + 1, results[i].score, results[i].plaintext);
+    }
+
+    return 0;
+}
