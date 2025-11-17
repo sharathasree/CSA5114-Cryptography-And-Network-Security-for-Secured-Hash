@@ -1,0 +1,113 @@
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+#define SIZE 5
+
+void prepareKey(char key[], char table[SIZE][SIZE]) {
+    int used[26] = {0};
+    int x = 0, y = 0;
+
+    for (int i = 0; key[i] != '\0'; i++) {
+        char c = toupper(key[i]);
+        if (c < 'A' || c > 'Z') continue;
+        if (c == 'J') c = 'I';
+        if (!used[c - 'A']) {
+            table[x][y++] = c;
+            used[c - 'A'] = 1;
+            if (y == SIZE) { y = 0; x++; }
+        }
+    }
+
+    for (char c = 'A'; c <= 'Z'; c++) {
+        if (c == 'J') continue;
+        if (!used[c - 'A']) {
+            table[x][y++] = c;
+            used[c - 'A'] = 1;
+            if (y == SIZE) { y = 0; x++; }
+        }
+    }
+}
+void findPosition(char t[SIZE][SIZE], char c, int *row, int *col) {
+    if (c == 'J') c = 'I';
+    for (int i = 0; i < SIZE; i++)
+        for (int j = 0; j < SIZE; j++)
+            if (t[i][j] == c) {
+                *row = i;
+                *col = j;
+                return;
+            }
+}
+
+// Decrypt a digraph
+void decryptPair(char table[SIZE][SIZE], char a, char b, char *x, char *y) {
+    int r1, c1, r2, c2;
+    findPosition(table, a, &r1, &c1);
+    findPosition(table, b, &r2, &c2);
+
+    if (r1 == r2) {  
+        *x = table[r1][(c1 + SIZE - 1) % SIZE];
+        *y = table[r2][(c2 + SIZE - 1) % SIZE];
+    }
+    else if (c1 == c2) {  
+        *x = table[(r1 + SIZE - 1) % SIZE][c1];
+        *y = table[(r2 + SIZE - 1) % SIZE][c2];
+    }
+    else {  
+        *x = table[r1][c2];
+        *y = table[r2][c1];
+    }
+}
+
+int main() {
+    char key[100];
+    char table[SIZE][SIZE];
+
+    char ciphertext[] =
+        "KXJEY UREBE ZWEHE WRYTU HEYFS "
+        "KREHE GOYFI WTTTU OLKSY CAJPO "
+        "BOTEI ZONTX BYBNT GONEY CUZWR "
+        "GDSON SXBOU YWRHE BAAHY USEDQ";
+
+    printf("Enter Playfair key: ");
+    fgets(key, sizeof(key), stdin);
+
+    prepareKey(key, table);
+
+    printf("\nPlayfair Table:\n");
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++)
+            printf("%c ", table[i][j]);
+        printf("\n");
+    }
+
+    printf("\nDecrypted Message:\n");
+
+    int n = strlen(ciphertext);
+
+    for (int i = 0; i < n; ) {
+        if (!isalpha(ciphertext[i])) {
+            putchar(ciphertext[i++]);  
+            continue;
+        }
+
+        char a = toupper(ciphertext[i++]);
+        char b;
+
+        while (i < n && !isalpha(ciphertext[i])) i++;
+
+        if (i < n)
+            b = toupper(ciphertext[i++]);
+        else
+            b = 'X';  
+
+        char x, y;
+        decryptPair(table, a, b, &x, &y);
+
+        putchar(x);
+        putchar(y);
+    }
+
+    printf("\n");
+    return 0;
+}
