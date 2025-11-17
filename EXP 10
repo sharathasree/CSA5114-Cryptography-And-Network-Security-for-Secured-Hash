@@ -1,0 +1,87 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define SIZE 5
+
+char table[SIZE][SIZE] = {
+    {'M','F','H','I','K'},
+    {'U','N','O','P','Q'},
+    {'Z','V','W','X','Y'},
+    {'E','L','A','R','G'},
+    {'D','S','T','B','C'}
+};
+
+void findPosition(char c, int *row, int *col) {
+    if (c == 'J') c = 'I';  // treat I/J as same
+    for (int i = 0; i < SIZE; i++)
+        for (int j = 0; j < SIZE; j++)
+            if (table[i][j] == c) {
+                *row = i;
+                *col = j;
+                return;
+            }
+}
+
+// Encrypt a digraph
+void encryptPair(char a, char b, char *x, char *y) {
+    int r1, c1, r2, c2;
+    findPosition(a, &r1, &c1);
+    findPosition(b, &r2, &c2);
+
+    if (r1 == r2) {
+        // Same row: shift right
+        *x = table[r1][(c1 + 1) % SIZE];
+        *y = table[r2][(c2 + 1) % SIZE];
+    } else if (c1 == c2) {
+        *x = table[(r1 + 1) % SIZE][c1];
+        *y = table[(r2 + 1) % SIZE][c2];
+    } else {
+        *x = table[r1][c2];
+        *y = table[r2][c1];
+    }
+}
+void preprocess(char *plaintext, char *processed) {
+    int len = 0;
+    for (int i = 0; plaintext[i]; i++) {
+        if (isalpha(plaintext[i])) {
+            char c = toupper(plaintext[i]);
+            if (c == 'J') c = 'I';
+            processed[len++] = c;
+        }
+    }
+    processed[len] = '\0';
+    char temp[1000];
+    int tlen = 0;
+    for (int i = 0; i < len; i++) {
+        temp[tlen++] = processed[i];
+        if (i + 1 < len && processed[i] == processed[i + 1]) {
+            temp[tlen++] = 'X';
+        }
+    }
+    if (tlen % 2 != 0) temp[tlen++] = 'X'; // pad if odd
+    temp[tlen] = '\0';
+    strcpy(processed, temp);
+}
+
+int main() {
+    char plaintext[] = "Must see you over Cadogan West. Coming at once";
+    char processed[1000];
+    preprocess(plaintext, processed);
+
+    printf("Processed plaintext: %s\n", processed);
+
+    char ciphertext[1000];
+    int n = strlen(processed);
+    for (int i = 0; i < n; i += 2) {
+        char x, y;
+        encryptPair(processed[i], processed[i+1], &x, &y);
+        ciphertext[i] = x;
+        ciphertext[i+1] = y;
+    }
+    ciphertext[n] = '\0';
+
+    printf("Encrypted ciphertext: %s\n", ciphertext);
+
+    return 0;
+}
