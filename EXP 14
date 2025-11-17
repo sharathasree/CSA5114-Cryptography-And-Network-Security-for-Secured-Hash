@@ -1,0 +1,58 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+int charToNum(char c) {
+    return toupper(c) - 'A';
+}
+
+char numToChar(int n) {
+    return 'A' + ((n % 26) + 26) % 26;
+}
+void encryptOTP(char *pt, int *key, char *ct) {
+    for (int i = 0; i < strlen(pt); i++) {
+        int p = charToNum(pt[i]);
+        int c = (p + key[i]) % 26;
+        ct[i] = numToChar(c);
+    }
+    ct[strlen(pt)] = '\0';
+}
+void recoverKey(char *pt, char *ct, int *key) {
+    for (int i = 0; i < strlen(pt); i++) {
+        int p = charToNum(pt[i]);
+        int c = charToNum(ct[i]);
+        key[i] = (c - p + 26) % 26;
+    }
+}
+
+int main() {
+    // -------------------------
+    // Part (a): Encrypt message
+    // -------------------------
+    char pt1[] = "SENDMOREMONEY";   // remove spaces
+    int key1[] = {9,0,1,7,23,15,21,14,11,11,2,8,9};
+    char ct1[100];
+
+    encryptOTP(pt1, key1, ct1);
+
+    printf("Part (a) Encryption:\n");
+    printf("Plaintext : %s\n", pt1);
+    printf("Ciphertext: %s\n", ct1);
+
+    char pt2[] = "CASHNOTNEEDED";
+    int key2[100];
+
+    recoverKey(pt2, ct1, key2);
+
+    printf("\nPart (b) Recovered Key:\n");
+    printf("Ciphertext: %s\n", ct1);
+    printf("New Plain : %s\n", pt2);
+    printf("Recovered Key: ");
+
+    for (int i = 0; i < strlen(pt2); i++)
+        printf("%d ", key2[i]);
+
+    printf("\n");
+
+    return 0;
+}
