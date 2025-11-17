@@ -1,0 +1,72 @@
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+void generateCipherAlphabet(char *keyword, char cipherMap[]) {
+    int used[26] = {0};
+    int index = 0;
+
+    for (int i = 0; keyword[i] != '\0'; i++) {
+        char c = toupper(keyword[i]);
+        if (c >= 'A' && c <= 'Z' && !used[c - 'A']) {
+            cipherMap[index++] = c;
+            used[c - 'A'] = 1;
+        }
+    }
+    for (char c = 'A'; c <= 'Z'; c++) {
+        if (!used[c - 'A']) {
+            cipherMap[index++] = c;
+        }
+    }
+}
+
+void encrypt(char *plaintext, char cipherMap[], char *ciphertext) {
+    for (int i = 0; plaintext[i] != '\0'; i++) {
+        char c = tolower(plaintext[i]);
+        if (c >= 'a' && c <= 'z')
+            ciphertext[i] = cipherMap[c - 'a'];   // substitute
+        else
+            ciphertext[i] = plaintext[i];         // keep punctuation/space
+    }
+}
+
+void decrypt(char *ciphertext, char cipherMap[], char *plaintext) {
+    int reverseMap[26];
+    for (int i = 0; i < 26; i++) {
+        reverseMap[cipherMap[i] - 'A'] = i;
+    }
+
+    for (int i = 0; ciphertext[i] != '\0'; i++) {
+        char c = toupper(ciphertext[i]);
+        if (c >= 'A' && c <= 'Z')
+            plaintext[i] = reverseMap[c - 'A'] + 'a';
+        else
+            plaintext[i] = ciphertext[i];
+    }
+}
+
+int main() {
+    char keyword[] = "CIPHER";    // example keyword
+    char cipherMap[26];
+    generateCipherAlphabet(keyword, cipherMap);
+
+    printf("Keyword: %s\n", keyword);
+    printf("Cipher alphabet:\n");
+    printf("Plain : abcdefghijklmnopqrstuvwxyz\n");
+    printf("Cipher: ");
+    for (int i = 0; i < 26; i++) printf("%c", cipherMap[i]);
+    printf("\n\n");
+
+    char plaintext[] = "attack at dawn";
+    char encrypted[100] = {0};
+    char decrypted[100] = {0};
+
+    encrypt(plaintext, cipherMap, encrypted);
+    decrypt(encrypted, cipherMap, decrypted);
+
+    printf("Plaintext : %s\n", plaintext);
+    printf("Encrypted : %s\n", encrypted);
+    printf("Decrypted : %s\n", decrypted);
+
+    return 0;
+}
