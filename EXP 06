@@ -1,0 +1,56 @@
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+int modInverse(int a, int m) {
+    a = a % m;
+    for(int x = 1; x < m; x++)
+        if((a * x) % m == 1) 
+            return x;
+    return -1;
+}
+
+int main() {
+    char ciphertext[] = "YOUR CIPHERTEXT HERE";
+    int C1 = 'B' - 'A';   
+    int P1 = 'E' - 'A';  
+    int C2 = 'U' - 'A';   
+    int P2 = 'T' - 'A';   
+    int num = (C2 - C1 + 26) % 26;
+    int den = (P2 - P1 + 26) % 26;
+
+    int denInv = modInverse(den, 26);
+    if(denInv == -1) {
+        printf("No modular inverse found. Cannot solve.\n");
+        return 1;
+    }
+
+    int a = (num * denInv) % 26;
+    int b = (C1 - a * P1) % 26;
+    if(b < 0) b += 26;
+
+    printf("Found affine key: a = %d, b = %d\n", a, b);
+    int a_inv = modInverse(a, 26);
+    if(a_inv == -1) {
+        printf("No modular inverse for 'a'. Invalid key.\n");
+        return 1;
+    }
+
+    printf("a inverse = %d\n", a_inv);
+    char plaintext[1000];
+    int n = strlen(ciphertext);
+    for(int i = 0; i < n; i++) {
+        if(isalpha(ciphertext[i])) {
+            int C = toupper(ciphertext[i]) - 'A';
+            int P = (a_inv * (C - b + 26)) % 26;
+            plaintext[i] = P + 'A';
+        } else {
+            plaintext[i] = ciphertext[i];
+        }
+    }
+    plaintext[n] = '\0';
+
+    printf("Decrypted text:\n%s\n", plaintext);
+
+    return 0;
+}
