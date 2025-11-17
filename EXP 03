@@ -1,0 +1,76 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+char mat[5][5];
+
+void buildMatrix(char key[]) {
+    int used[26] = {0}, r = 0, c = 0;
+    used['J' - 'A'] = 1;
+
+    for (int i = 0; key[i]; i++) {
+        char ch = toupper(key[i]);
+        if (!isalpha(ch)) continue;
+        if (ch == 'J') ch = 'I';
+        if (!used[ch - 'A']) {
+            mat[r][c++] = ch;
+            used[ch - 'A'] = 1;
+            if (c == 5) c = 0, r++;
+        }
+    }
+    for (char ch = 'A'; ch <= 'Z'; ch++) {
+        if (!used[ch - 'A']) {
+            mat[r][c++] = ch;
+            if (c == 5) c = 0, r++;
+        }
+    }
+}
+
+void find(char ch, int *r, int *c) {
+    for (int i = 0; i < 5; i++)
+        for (int j = 0; j < 5; j++)
+            if (mat[i][j] == ch) { *r = i; *c = j; return; }
+}
+
+int main() {
+    char key[50], txt[200], p[300];
+    printf("Key: ");  fgets(key, sizeof(key), stdin);
+    printf("Plaintext: "); fgets(txt, sizeof(txt), stdin);
+
+    buildMatrix(key);
+
+    int k = 0;
+    for (int i = 0; txt[i]; i++) {
+        char ch = toupper(txt[i]);
+        if (isalpha(ch)) {
+            if (ch == 'J') ch = 'I';
+            p[k++] = ch;
+        }
+    }
+    p[k] = '\0';
+
+    char out[400];  
+    int t = 0;
+    for (int i = 0; i < k; i++) {
+        out[t++] = p[i];
+        if (i + 1 < k && p[i] == p[i + 1]) out[t++] = 'X';
+    }
+    if (t % 2) out[t++] = 'X';
+    out[t] = '\0';
+
+    printf("Ciphertext: ");
+    for (int i = 0; i < t; i += 2) {
+        int r1, c1, r2, c2;
+        find(out[i], &r1, &c1);
+        find(out[i+1], &r2, &c2);
+
+        if (r1 == r2) {
+            printf("%c%c", mat[r1][(c1+1)%5], mat[r2][(c2+1)%5]);
+        } else if (c1 == c2) {
+            printf("%c%c", mat[(r1+1)%5][c1], mat[(r2+1)%5][c2]);
+        } else {
+            printf("%c%c", mat[r1][c2], mat[r2][c1]);
+        }
+    }
+    printf("\n");
+}
