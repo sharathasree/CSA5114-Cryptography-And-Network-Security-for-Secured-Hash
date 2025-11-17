@@ -1,0 +1,80 @@
+#include <stdio.h>
+#include <string.h>
+int PC1[56] = {
+    57,49,41,33,25,17,9,
+    1,58,50,42,34,26,18,
+    10,2,59,51,43,35,27,
+    19,11,3,60,52,44,36,
+    63,55,47,39,31,23,15,
+    7,62,54,46,38,30,22,
+    14,6,61,53,45,37,29,
+    21,13,5,28,20,12,4
+};
+
+int PC2[48] = {
+    14,17,11,24,1,5, 
+    3,28,15,6,21,10, 
+    23,19,12,4,26,8, 
+    16,7,27,20,13,2,
+    41,52,31,37,47,55, 
+    30,40,51,45,33,48, 
+    44,49,39,56,34,53, 
+    46,42,50,36,29,32
+};
+int shifts[16] = {
+    1,1,2,2,2,2,2,2,
+    1,2,2,2,2,2,2,1
+};
+
+void leftShift(int *arr, int len, int n) {
+    while (n--) {
+        int tmp = arr[0];
+        for (int i = 0; i < len - 1; i++)
+            arr[i] = arr[i + 1];
+        arr[len - 1] = tmp;
+    }
+}
+
+int main() {)
+    unsigned char key[8] = {
+        0x13, 0x34, 0x57, 0x79,
+        0x9B, 0xBC, 0xDF, 0xF1
+    };
+
+    int key56[56];
+    int C[28], D[28];
+    int CD[56];
+    int subkey[48];
+
+    printf("\n=== Demonstrating DES Subkey Bit Origins (C half vs D half) ===\n\n");
+    for (int i = 0; i < 56; i++) {
+        key56[i] = (key[(PC1[i]-1)/8] >> (7 - ((PC1[i]-1) % 8))) & 1;
+    }
+    memcpy(C, key56,     28*sizeof(int));
+    memcpy(D, key56+28,  28*sizeof(int));
+
+    for (int round = 0; round < 16; round++) {
+        leftShift(C, 28, shifts[round]);
+        leftShift(D, 28, shifts[round]);
+
+        memcpy(CD,     C, 28*sizeof(int));
+        memcpy(CD+28,  D, 28*sizeof(int));
+
+        for (int j = 0; j < 48; j++)
+            subkey[j] = CD[ PC2[j]-1 ];
+        printf("Round %2d subkey bits:\n", round+1);
+        printf("Bit positions from C: ");
+        for (int j = 0; j < 48; j++)
+            if (PC2[j] <= 28)  
+                printf("%d ", j+1);
+        printf("\n");
+
+        printf("Bit positions from D: ");
+        for (int j = 0; j < 48; j++)
+            if (PC2[j] > 28)   
+                printf("%d ", j+1);
+        printf("\n\n");
+    }
+
+    return 0;
+}
