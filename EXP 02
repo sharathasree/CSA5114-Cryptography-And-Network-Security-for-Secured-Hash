@@ -1,0 +1,58 @@
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+void substituteCipher(char text[], char key[]) {
+    for (int i = 0; text[i] != '\0'; i++) {
+        char c = text[i];
+
+        if (c >= 'A' && c <= 'Z') {
+            int index = c - 'A';
+            text[i] = toupper(key[index]);
+        }
+        else if (c >= 'a' && c <= 'z') {
+            int index = c - 'a';
+            text[i] = tolower(key[index]);
+        }
+        
+    }
+}
+
+int isValidKey(char key[]) {
+    if (strlen(key) != 26)
+        return 0;
+
+    int used[26] = {0};
+
+    for (int i = 0; i < 26; i++) {
+        if (!isalpha(key[i]))
+            return 0;
+
+        int idx = toupper(key[i]) - 'A';
+        if (used[idx])    // letter repeated
+            return 0;
+        used[idx] = 1;
+    }
+
+    return 1;
+}
+
+int main() {
+    char text[256];
+    char key[27];   
+    printf("Enter a 26-letter substitution key (cipher alphabet):\n");
+    scanf("%26s", key);
+
+    if (!isValidKey(key)) {
+        printf("Invalid key! Must be 26 unique alphabetic characters.\n");
+        return 1;
+    }
+    getchar(); 
+    printf("Enter text to encrypt:\n");
+    fgets(text, sizeof(text), stdin);
+
+    substituteCipher(text, key);
+
+    printf("\nEncrypted text: %s\n", text);
+
+    return 0;
+}
