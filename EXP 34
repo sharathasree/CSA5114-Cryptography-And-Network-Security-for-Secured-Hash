@@ -1,0 +1,140 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define BLOCK_SIZE 8   // 64-bit block
+
+void xor_encrypt_block(unsigned char *block, unsigned char *key)
+{
+    for (int i = 0; i < BLOCK_SIZE; i++)
+        block[i] ^= key[i];
+}
+
+void xor_decrypt_block(unsigned char *block, unsigned char *key)
+{
+    xor_encrypt_block(block, key);   // XOR encryption = decryption
+}
+int pad(unsigned char *input, int len)
+{
+    input[len] = 0x80;  // 10000000
+    for (int i = len + 1; i < BLOCK_SIZE; i++)
+        input[i] = 0x00;
+
+    return BLOCK_SIZE;
+}
+
+void encrypt_ECB(unsigned char *plaintext, int blocks, unsigned char *key)
+{
+    for (int i = 0; i < blocks; i++)
+        xor_encrypt_block(&plaintext[i * BLOCK_SIZE], key);
+}
+
+void decrypt_ECB(unsigned char *ciphertext, int blocks, unsigned char *key)
+{
+    for (int i = 0; i < blocks; i++)
+        xor_decrypt_block(&ciphertext[i * BLOCK_SIZE], key);
+}
+
+void encrypt_CBC(unsigned char *plaintext, int blocks, unsigned char *key, unsigned char *iv)
+{
+    unsigned char temp[BLOCK_SIZE];
+
+    for (int i = 0; i < blocks; i++)
+    {
+        for (int j = 0; j < BLOCK_SIZE; j++)
+            temp[j] = plaintext[i * BLOCK_SIZE + j] ^ iv[j];
+
+        xor_encrypt_block(temp, key);
+
+        memcpy(&plaintext[i * BLOCK_SIZE], temp, BLOCK_SIZE);
+        memcpy(iv, temp, BLOCK_SIZE);
+    }
+}
+
+void decrypt_CBC(unsigned char *ciphertext, int blocks, unsigned char *key, unsigned char *iv)
+{
+    unsigned char temp[BLOCK_SIZE], prev[BLOCK_SIZE];
+
+    for (int i = 0; i < blocks; i++)
+    {
+        memcpy(prev, iv, BLOCK_SIZE);
+        memcpy(temp, &ciphertext[i * BLOCK_SIZE], BLOCK_SIZE);
+
+        xor_decrypt_block(temp, key);
+
+        for (int j = 0; j < BLOCK_SIZE; j++)
+            ciphertext[i * BLOCK_SIZE + j] = temp[j] ^ prev[j];
+
+        memcpy(iv, &ciphertext[i * BLOCK_SIZE - BLOCK_SIZE], BLOCK_SIZE);
+    }
+}
+
+void encrypt_CFB(unsigned char *data, int segments, unsigned char *key, unsigned char *iv)
+{
+    unsigned char temp[BLOCK_SIZE];
+
+    for (int i = 0; i < segments; i++)
+    {
+        memcpy(temp, iv, BLOCK_SIZE);
+        xor_encrypt_block(temp, key);
+
+        for (int j = 0; j < BLOCK_SIZE; j++)
+        {
+            unsigned char c = data[i * BLOCK_SIZE + j] ^ temp[j];
+            iv[j] = c;   // update shift register
+            data[i * BLOCK_SIZE + j] = c;
+        }
+    }
+}
+
+void decrypt_CFB(unsigned char *data, int segments, unsigned char *key, unsigned char *iv)
+{
+    unsigned char temp[BLOCK_SIZE], prev[BLOCK_SIZE];
+
+    for (int i = 0; i < segments; i++)
+    {
+        memcpy(prev, iv, BLOCK_SIZE);
+
+        memcpy(temp, iv, BLOCK_SIZE);
+        xor_encrypt_block(temp, key);
+
+        for (int j = 0; j < BLOCK_SIZE; j++)
+        {
+            unsigned char p = data[i * BLOCK_SIZE + j] ^ temp[j];
+            data[i * BLOCK_SIZE + j] = p;
+            iv[j] = data[i * BLOCK_SIZE + j];   // update IV
+        }
+    }
+}
+
+int main()
+{
+    unsigned char key[BLOCK_SIZE] = "mykey123";
+    unsigned char iv[BLOCK_SIZE]  = "12345678";
+
+    unsigned char message[64] = "HELLO WORLD!!";
+    int len = strlen((char*)message);
+
+    int last_block_size = len % BLOCK_SIZE;
+    int blocks;
+
+    if (last_block_size != 0)
+        blocks = (len / BLOCK_SIZE) + 1;
+    else
+    {
+        blocks = (len / BLOCK_SIZE) + 1;
+    }
+
+    pad(&message[len], last_block_size);
+
+    printf("\nOriginal Message: %s\n", message);
+
+    encrypt_ECB(message, blocks, key);
+    printf("\nECB Encrypted Hex: ");
+    for (int i = 0; i < blocks * BLOCK_SIZE; i++) printf("%02X ", message[i]);
+
+    decrypt_ECB(message, blocks, key);
+    printf("\nECB Decrypted: %s\n", message);
+
+    return 0;
+}
