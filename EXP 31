@@ -1,0 +1,52 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+
+void block_cipher_zero(unsigned char *out, int n) {
+    memset(out, 0, n);
+}
+
+void left_shift(unsigned char *out, unsigned char *in, int n) {
+    int i;
+    unsigned char carry = 0, next;
+    for (i = n - 1; i >= 0; i--) {
+        next = (in[i] >> 7) & 1;
+        out[i] = (in[i] << 1) | carry;
+        carry = next;
+    }
+}
+
+void xor_rb(unsigned char *x, int n, unsigned char Rb) {
+    x[n - 1] ^= Rb;
+}
+
+int main() {
+    int block_size_bits = 128;
+    int n = block_size_bits / 8;
+
+    unsigned char Rb = (block_size_bits == 128) ? 0x87 : 0x1B;
+
+    unsigned char L[16], K1[16], K2[16];
+
+    block_cipher_zero(L, n);
+
+    left_shift(K1, L, n);
+    if (L[0] & 0x80) xor_rb(K1, n, Rb);
+
+    left_shift(K2, K1, n);
+    if (K1[0] & 0x80) xor_rb(K2, n, Rb);
+
+    printf("L  = ");
+    for (int i = 0; i < n; i++) printf("%02X ", L[i]);
+    printf("\n");
+
+    printf("K1 = ");
+    for (int i = 0; i < n; i++) printf("%02X ", K1[i]);
+    printf("\n");
+
+    printf("K2 = ");
+    for (int i = 0; i < n; i++) printf("%02X ", K2[i]);
+    printf("\n");
+
+    return 0;
+}
