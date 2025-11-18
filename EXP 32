@@ -1,0 +1,53 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <stdint.h>
+
+unsigned int hash_message(const char *msg) {
+    unsigned int h = 0;
+    while (*msg) h = (h * 31) + *msg++;
+    return h;
+}
+
+
+void DSA_sign(const char *msg, unsigned int x) {
+    unsigned int H = hash_message(msg);
+
+    unsigned int k = rand() % 100000 + 1;      
+    unsigned int r = (k * 7) % 7919;          
+    unsigned int s = (H + x * r) / k;       
+
+    printf("DSA signature: r = %u, s = %u\n", r, s);
+}
+
+unsigned int RSA_sign(const char *msg, unsigned int d, unsigned int n) {
+    unsigned int H = hash_message(msg);
+    unsigned int sig = 1;
+
+    for (unsigned int i = 0; i < d; i++)
+        sig = (sig * H) % n;
+
+    return sig;
+}
+
+
+int main() {
+    srand(time(NULL));
+
+    const char *message = "HELLO";
+
+    printf("----- Demonstrating DSA (Two signatures differ) -----\n");
+    DSA_sign(message, 1234);   
+    DSA_sign(message, 1234);   
+    printf("\n----- Demonstrating RSA (Two signatures same) -----\n");
+    unsigned int s1 = RSA_sign(message, 17, 7919);
+    unsigned int s2 = RSA_sign(message, 17, 7919);
+
+    printf("RSA signature 1 = %u\n", s1);
+    printf("RSA signature 2 = %u\n", s2);
+
+    if (s1 == s2) printf("RSA signatures are IDENTICAL.\n");
+    else printf("RSA signatures differ (unexpected).\n");
+
+    return 0;
+}
