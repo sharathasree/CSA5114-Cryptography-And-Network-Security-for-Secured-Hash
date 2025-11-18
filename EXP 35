@@ -1,0 +1,72 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define MAX 1000
+void encrypt(char *pt, int *key, char *ct)
+{
+    for(int i = 0; pt[i] != '\0'; i++)
+    {
+        if(pt[i] >= 'A' && pt[i] <= 'Z')
+            ct[i] = ((pt[i] - 'A') + key[i]) % 26 + 'A';
+
+        else if(pt[i] >= 'a' && pt[i] <= 'z')
+            ct[i] = ((pt[i] - 'a') + key[i]) % 26 + 'a';
+
+        else
+            ct[i] = pt[i]; // non-letters unchanged
+    }
+}
+void decrypt(char *ct, int *key, char *pt)
+{
+    for(int i = 0; ct[i] != '\0'; i++)
+    {
+        if(ct[i] >= 'A' && ct[i] <= 'Z')
+            pt[i] = ((ct[i] - 'A') - key[i] + 26) % 26 + 'A';
+
+        else if(ct[i] >= 'a' && ct[i] <= 'z')
+            pt[i] = ((ct[i] - 'a') - key[i] + 26) % 26 + 'a';
+
+        else
+            pt[i] = ct[i];
+    }
+}
+
+int main()
+{
+    char plaintext[MAX], ciphertext[MAX], decrypted[MAX];
+    int key[MAX];
+
+    printf("Enter plaintext: ");
+    fgets(plaintext, MAX, stdin);
+    plaintext[strcspn(plaintext, "\n")] = '\0';
+
+    int n = strlen(plaintext);
+
+    srand(time(NULL));
+    printf("\nGenerated OTP Key Stream:\n");
+    for(int i = 0; i < n; i++)
+    {
+        if((plaintext[i] >= 'A' && plaintext[i] <= 'Z') ||
+           (plaintext[i] >= 'a' && plaintext[i] <= 'z'))
+            key[i] = rand() % 26;  
+        else
+            key[i] = 0; // non-letters
+        printf("%d ", key[i]);
+    }
+
+    printf("\n");
+
+    encrypt(plaintext, key, ciphertext);
+    ciphertext[n] = '\0';
+
+    printf("\nCiphertext: %s\n", ciphertext);
+
+    decrypt(ciphertext, key, decrypted);
+    decrypted[n] = '\0';
+
+    printf("Decrypted Text: %s\n", decrypted);
+
+    return 0;
+}
