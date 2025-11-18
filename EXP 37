@@ -1,0 +1,84 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX 5000
+#define ALPHABET 26
+char englishFreqOrder[] = "ETAOINSHRDLCUMWFGYPBVKJXQZ";
+
+typedef struct {
+    char letter;
+    int count;
+} LetterFreq;
+int cmp(const void *a, const void *b) {
+    return ((LetterFreq*)b)->count - ((LetterFreq*)a)->count;
+}
+
+void decrypt_with_map(char *cipher, char map[], char *output) {
+    for(int i = 0; cipher[i]; i++) {
+        if(cipher[i] >= 'A' && cipher[i] <= 'Z')
+            output[i] = map[cipher[i] - 'A'];
+        else if(cipher[i] >= 'a' && cipher[i] <= 'z')
+            output[i] = map[cipher[i] - 'a'] + 32; // lowercase
+        else
+            output[i] = cipher[i];
+    }
+    output[strlen(cipher)] = '\0';
+}
+void swap_letters(char map[], int i, int j) {
+    char temp = map[i];
+    map[i] = map[j];
+    map[j] = temp;
+}
+
+int main() {
+    char cipher[MAX];
+    LetterFreq freq[ALPHABET];
+    char baseMap[ALPHABET], map[ALPHABET];
+    int topN;
+
+    printf("Enter ciphertext:\n");
+    fgets(cipher, MAX, stdin);
+
+    printf("Enter number of plaintext guesses (e.g., 10): ");
+    scanf("%d", &topN);
+
+    for(int i = 0; i < ALPHABET; i++) {
+        freq[i].letter = 'A' + i;
+        freq[i].count = 0;
+    }
+
+    for(int i = 0; cipher[i]; i++) {
+        if(cipher[i] >= 'A' && cipher[i] <= 'Z')
+            freq[cipher[i] - 'A'].count++;
+        else if(cipher[i] >= 'a' && cipher[i] <= 'z')
+            freq[cipher[i] - 'a'].count++;
+    }
+
+    qsort(freq, ALPHABET, sizeof(LetterFreq), cmp);
+
+    for(int i = 0; i < ALPHABET; i++) {
+        baseMap[freq[i].letter - 'A'] = englishFreqOrder[i];
+    }
+
+    printf("\n==============================\n");
+    printf(" TOP %d MOST LIKELY PLAINTEXTS\n", topN);
+    printf("==============================\n");
+
+    for(int guess = 0; guess < topN; guess++) {
+        memcpy(map, baseMap, ALPHABET);
+
+        int s1 = guess % 10;          
+        int s2 = (guess * 3) % 10;   
+
+        if(s1 != s2)
+            swap_letters(map, s1, s2);
+
+        char result[MAX];
+        decrypt_with_map(cipher, map, result);
+
+        printf("\nGuess #%d:\n%s\n", guess + 1, result);
+    }
+
+    return 0;
+}
