@@ -1,0 +1,141 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+
+#define BLOCK_SIZE 8
+
+int hexchar(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+    if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+    return -1;
+}
+
+int hex_to_bytes(const char *hex, uint8_t *out, size_t len) {
+    for (size_t i=0; i<len; i++) {
+        int hi = hexchar(hex[2*i]);
+        int lo = hexchar(hex[2*i+1]);
+        if (hi<0 || lo<0) return -1;
+        out[i] = (hi<<4) | lo;
+    }
+    return 0;
+}
+
+void encrypt_block(const uint8_t *in, uint8_t *out, const uint8_t *key) {
+    for (int i=0;i<BLOCK_SIZE;i++) out[i] = in[i] ^ key[i];
+}
+void decrypt_block(const uint8_t *in, uint8_t *out, const uint8_t *key) {
+    encrypt_block(in,out,key);
+}
+uint8_t *pad(const uint8_t *msg, size_t len, size_t *out_len) {
+    size_t rem = len % BLOCK_SIZE;
+    size_t pad_len = (rem == 0 ? BLOCK_SIZE : BLOCK_SIZE - rem);
+
+    *out_len = len + pad_len;
+    uint8_t *buf = malloc(*out_len);
+    memcpy(buf, msg, len);
+
+    buf[len] = 0x80;
+    for (size_t i=1; i<pad_len; i++)
+        buf[len+i] = 0x00;
+
+    return buf;
+}
+
+ssize_t unpad(uint8_t *buf, size_t len) {
+    for (ssize_t i=len-1; i>=0; i--) {
+        if (buf[i] == 0x80) return i;
+        if (buf[i] != 0x00) return -1;
+    }
+    return -1;
+}
+void ecb_encrypt(uint8_t *out, const uint8_t *in, size_t len, const uint8_t *key) {
+    for (size_t i=0; i<len; i+=BLOCK_SIZE)
+        encrypt_block(in+i, out+i, key);
+}
+
+void ecb_decrypt(uint8_t *out, const uint8_t *in, size_t len, const uint8_t *key) {
+    for (size_t i=0; i<len; i+=BLOCK_SIZE)
+        decrypt_block(in+i, out+i, key);
+}
+
+void cbc_encrypt(uint8_t *out, const uint8_t *in, size_t len, const uint8_t *key, const uint8_t *iv) {
+    uint8_t prev[BLOCK_SIZE];
+    memcpy(prev, iv, BLOCK_SIZE);
+
+    for (size_t i=0; i<len; i+=BLOCK_SIZE) {
+        uint8_t tmp[BLOCK_SIZE];
+        for (int j=0;j<BLOCK_SIZE;j++) tmp[j] = in[i+j] ^ prev[j];
+        encrypt_block(tmp, out+i, key);
+        memcpy(prev, out+i, BLOCK_SIZE);
+    }
+}
+
+void cbc_decrypt(uint8_t *out, const uint8_t *in, size_t len, const uint8_t *key, const uint8_t *iv) {
+    uint8_t prev[BLOCK_SIZE];
+    memcpy(prev, iv, BLOCK_SIZE);
+
+    for (size_t i=0; i<len; i+=BLOCK_SIZE) {
+        uint8_t tmp[BLOCK_SIZE];
+        decrypt_block(in+i, tmp, key);
+        for (int j=0;j<BLOCK_SIZE;j++) out[i+j] = tmp[j] ^ prev[j];
+        memcpy(prev, in+i, BLOCK_SIZE);
+    }
+}
+
+void cfb_encrypt(uint8_t *out, const uint8_t *in, size_t len, const uint8_t *key, const uint8_t *iv) {
+    uint8_t feedback[BLOCK_SIZE];
+    memcpy(feedback, iv, BLOCK_SIZE);
+
+    for (size_t i=0; i<len; i+=BLOCK_SIZE) {
+        uint8_t s[BLOCK_SIZE];
+        encrypt_block(feedback, s, key);
+
+        for (int j=0;j<BLOCK_SIZE;j++)
+            out[i+j] = in[i+j] ^ s[j];
+
+        memcpy(feedback, out+i, BLOCK_SIZE);
+    }
+}
+
+void cfb_decrypt(uint8_t *out, const uint8_t *in, size_t len, const uint8_t *key, const uint8_t *iv) {
+    uint8_t feedback[BLOCK_SIZE];
+    memcpy(feedback, iv, BLOCK_SIZE);
+
+    for (size_t i=0; i<len; i+=BLOCK_SIZE) {
+        uint8_t s[BLOCK_SIZE];
+        encrypt_block(feedback, s, key);
+
+        for (int j=0;j<BLOCK_SIZE;j++)
+            out[i+j] = in[i+j] ^ s[j];
+
+        memcpy(feedback, in+i, BLOCK_SIZE);
+    }
+}
+int main() {
+    uint8_t key[BLOCK_SIZE] = {1,2,3,4,5,6,7,8};
+    uint8_t iv[BLOCK_SIZE]  = {9,9,9,9,9,9,9,9};
+
+    uint8_t plaintext[] = "HELLO WORLD!";
+    size_t padded_len;
+
+    uint8_t *padded = pad(plaintext, strlen((char*)plaintext), &padded_len);
+    uint8_t *cipher = malloc(padded_len);
+    uint8_t *decrypted = malloc(padded_len);
+
+    cbc_encrypt(cipher, padded, padded_len, key, iv);
+    cbc_decrypt(decrypted, cipher, padded_len, key, iv);
+
+    ssize_t final_len = unpad(decrypted, padded_len);
+    decrypted[final_len] = '\0';
+
+    printf("Plaintext: %s\n", plaintext);
+    printf("Decrypted: %s\n", decrypted);
+
+    free(padded);
+    free(cipher);
+    free(decrypted);
+
+    return 0;
+}
