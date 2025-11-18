@@ -1,0 +1,98 @@
+#include <stdio.h>
+
+#define MOD 26
+
+int modInverse(int a) {
+    a %= MOD;
+    for(int x = 1; x < MOD; x++)
+        if((a * x) % MOD == 1)
+            return x;
+    return -1;
+}
+int determinant(int m[2][2]) {
+    return (m[0][0] * m[1][1] - m[0][1] * m[1][0]) % MOD;
+}
+
+int inverseMatrix(int m[2][2], int inv[2][2]) {
+    int det = determinant(m);
+    if(det < 0) det += MOD;
+
+    int invDet = modInverse(det);
+    if(invDet == -1) {
+        printf("Matrix is not invertible mod 26\n");
+        return 0;
+    }
+
+    inv[0][0] =  m[1][1] * invDet % MOD;
+    inv[0][1] = -m[0][1] * invDet % MOD;
+    inv[1][0] = -m[1][0] * invDet % MOD;
+    inv[1][1] =  m[0][0] * invDet % MOD;
+
+    for(int i=0;i<2;i++)
+        for(int j=0;j<2;j++)
+            if(inv[i][j] < 0) inv[i][j] += MOD;
+
+    return 1;
+}
+void multiply(int a[2][2], int b[2][2], int r[2][2]) {
+    for(int i=0;i<2;i++)
+        for(int j=0;j<2;j++) {
+            r[i][j] = (a[i][0]*b[0][j] + a[i][1]*b[1][j]) % MOD;
+        }
+}
+void textToMatrix(char p[2], int m[2][1]) {
+    m[0][0] = p[0] - 'A';
+    m[1][0] = p[1] - 'A';
+}
+void encrypt(int K[2][2], int P[2][1], int C[2][1]) {
+    C[0][0] = (K[0][0]*P[0][0] + K[0][1]*P[1][0]) % MOD;
+    C[1][0] = (K[1][0]*P[0][0] + K[1][1]*P[1][0]) % MOD;
+}
+
+int main() {
+    int K[2][2];     
+    int P1[2][1], P2[2][1];  
+    int C1[2][1], C2[2][1];
+    int Pmat[2][2], Cmat[2][2];
+    int P_inv[2][2], K_recovered[2][2];
+
+    char ptext1[3], ptext2[3];
+    char ctext1[3], ctext2[3];
+
+    printf("Enter known plaintext pair 1 (2 letters): ");
+    scanf("%s", ptext1);
+    printf("Enter corresponding ciphertext pair 1 (2 letters): ");
+    scanf("%s", ctext1);
+
+    printf("Enter known plaintext pair 2 (2 letters): ");
+    scanf("%s", ptext2);
+    printf("Enter corresponding ciphertext pair 2 (2 letters): ");
+    scanf("%s", ctext2);
+
+    textToMatrix(ptext1, P1);
+    textToMatrix(ptext2, P2);
+    textToMatrix(ctext1, C1);
+    textToMatrix(ctext2, C2);
+
+   
+    Pmat[0][0] = P1[0][0];  Pmat[0][1] = P2[0][0];
+    Pmat[1][0] = P1[1][0];  Pmat[1][1] = P2[1][0];
+
+    Cmat[0][0] = C1[0][0];  Cmat[0][1] = C2[0][0];
+    Cmat[1][0] = C1[1][0];  Cmat[1][1] = C2[1][0];
+
+    if(!inverseMatrix(Pmat, P_inv)) {
+        printf("Plaintext matrix is not invertible; cannot recover key.\n");
+        return 0;
+    }
+    multiply(Cmat, P_inv, K_recovered);
+
+    printf("\nRecovered Hill Cipher Key Matrix K:\n");
+    for(int i=0;i<2;i++) {
+        for(int j=0;j<2;j++)
+            printf("%2d ", K_recovered[i][j]);
+        printf("\n");
+    }
+
+    return 0;
+}
