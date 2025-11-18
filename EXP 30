@@ -1,0 +1,34 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+unsigned char E(unsigned char m, unsigned char k) {
+    return m ^ k;
+}
+
+unsigned char CBC_MAC_1block(unsigned char X, unsigned char K) {
+    return E(X, K);
+}
+
+unsigned char CBC_MAC_2block(unsigned char X1, unsigned char X2, unsigned char K) {
+    unsigned char t1 = E(X1, K);
+    unsigned char t2 = E(X2 ^ t1, K);
+    return t2;
+}
+
+int main() {
+    unsigned char X = 0x3A;
+    unsigned char K = 0x55;
+
+    unsigned char T = CBC_MAC_1block(X, K);
+
+    unsigned char forged2 = X ^ T;
+
+    unsigned char mac2 = CBC_MAC_2block(X, forged2, K);
+
+    printf("Original 1-block MAC T = %02X\n", T);
+    printf("Forged second block = %02X\n", forged2);
+    printf("MAC of forged 2-block message = %02X\n", mac2);
+
+    return 0;
+}
