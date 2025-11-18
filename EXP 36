@@ -1,0 +1,77 @@
+#include <stdio.h>
+#include <string.h>
+
+int gcd(int a, int b)
+{
+    if (b == 0) return a;
+    return gcd(b, a % b);
+}
+int modInverse(int a)
+{
+    a = a % 26;
+    for(int x = 1; x < 26; x++)
+        if((a * x) % 26 == 1)
+            return x;
+    return -1;
+}
+
+char affineEncryptChar(char p, int a, int b)
+{
+    if(p >= 'A' && p <= 'Z')
+        return ((a * (p - 'A') + b) % 26) + 'A';
+    if(p >= 'a' && p <= 'z')
+        return ((a * (p - 'a') + b) % 26) + 'a';
+    
+    return p;  
+}
+
+
+char affineDecryptChar(char c, int a, int b)
+{
+    int a_inv = modInverse(a);
+    if(a_inv == -1)
+        return c;
+
+    if(c >= 'A' && c <= 'Z')
+        return (a_inv * ((c - 'A') - b + 26)) % 26 + 'A';
+    if(c >= 'a' && c <= 'z')
+        return (a_inv * ((c - 'a') - b + 26)) % 26 + 'a';
+
+    return c;
+}
+
+int main()
+{
+    char plaintext[1000], ciphertext[1000], decrypted[1000];
+    int a, b;
+
+    printf("Enter value of a: ");
+    scanf("%d", &a);
+
+    printf("Enter value of b: ");
+    scanf("%d", &b);
+
+    if (gcd(a, 26) != 1)
+    {
+        printf("\nERROR: Invalid key! 'a' must be coprime with 26.\n");
+        printf("Affine cipher is NOT one-to-one for a = %d.\n", a);
+        return 0;
+    }
+
+    printf("Enter plaintext: ");
+    getchar(); // clear input buffer
+    fgets(plaintext, sizeof(plaintext), stdin);
+
+    for(int i = 0; plaintext[i] != '\0'; i++)
+        ciphertext[i] = affineEncryptChar(plaintext[i], a, b);
+    ciphertext[strlen(plaintext)] = '\0';
+
+    printf("\nCiphertext: %s\n", ciphertext);
+    for(int i = 0; ciphertext[i] != '\0'; i++)
+        decrypted[i] = affineDecryptChar(ciphertext[i], a, b);
+    decrypted[strlen(ciphertext)] = '\0';
+
+    printf("Decrypted Text: %s\n", decrypted);
+
+    return 0;
+}
