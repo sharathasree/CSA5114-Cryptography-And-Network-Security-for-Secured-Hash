@@ -1,0 +1,49 @@
+#include <stdio.h>
+#include <stdint.h>
+
+uint64_t modexp(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t result = 1 % mod;
+    base %= mod;
+    while (exp > 0) {
+        if (exp & 1) result = ( (__uint128_t)result * base ) % mod;
+        base = ( (__uint128_t)base * base ) % mod;
+        exp >>= 1;
+    }
+    return result;
+}
+
+int main() {
+  
+    uint64_t q = 23;  
+    uint64_t a = 5;   
+
+    uint64_t xA = 6;
+    uint64_t xB = 15;
+
+    uint64_t A = modexp(a, xA, q);
+    uint64_t B = modexp(a, xB, q);
+
+    uint64_t sharedA = modexp(B, xA, q);
+    uint64_t sharedB = modexp(A, xB, q);
+
+    printf("=== Correct Diffie-Hellman ===\n");
+    printf("Alice sends A = a^xA mod q = %llu\n", (unsigned long long)A);
+    printf("Bob sends   B = a^xB mod q = %llu\n", (unsigned long long)B);
+    printf("Shared key (Alice) = %llu\n", (unsigned long long)sharedA);
+    printf("Shared key (Bob)   = %llu\n\n", (unsigned long long)sharedB);
+
+    uint64_t wrongA = xA * a;
+    uint64_t wrongB = xB * a;
+
+    printf("=== Incorrect System (sending x*a) ===\n");
+    printf("Alice sends xA*a = %llu\n", (unsigned long long)wrongA);
+    printf("Bob sends   xB*a = %llu\n", (unsigned long long)wrongB);
+
+    // Eve immediately learns secrets:
+    printf("\nEve computes xA = (xA*a)/a = %llu\n", wrongA / a);
+    printf("Eve computes xB = (xB*a)/a = %llu\n", wrongB / a);
+
+    printf("\nThis system is completely insecure.\n");
+
+    return 0;
+}
