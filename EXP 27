@@ -1,0 +1,41 @@
+#include <stdio.h>
+#include <stdint.h>
+
+uint64_t modexp(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t r = 1;
+    base %= mod;
+    while (exp) {
+        if (exp & 1) r = ( (__uint128_t)r * base ) % mod;
+        base = ( (__uint128_t)base * base ) % mod;
+        exp >>= 1;
+    }
+    return r;
+}
+
+int main() {
+    uint64_t e = 31;          
+    uint64_t n = 3599;        
+
+    uint64_t enc_table[26];
+
+    
+    for (int m = 0; m < 26; m++) {
+        enc_table[m] = modexp(m, e, n);
+        printf("Plaintext %2d -> Ciphertext %4llu\n", 
+            m, (unsigned long long)enc_table[m]);
+    }
+
+    uint64_t intercepted = enc_table[7];  
+    printf("\nIntercepted ciphertext = %llu\n", 
+        (unsigned long long)intercepted);
+
+    for (int m = 0; m < 26; m++) {
+        if (enc_table[m] == intercepted) {
+            printf("Recovered plaintext = %d (%c)\n", 
+                m, 'A' + m);
+            break;
+        }
+    }
+
+    return 0;
+}
