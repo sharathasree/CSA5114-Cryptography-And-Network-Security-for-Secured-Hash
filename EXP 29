@@ -1,0 +1,60 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <time.h>
+
+
+int main(void) {
+    const int total_lanes = 25;
+    const int rate_lanes = 1024 / 64; 
+    const int cap_lanes = total_lanes - rate_lanes; 
+
+    const double p = (double)rate_lanes / (double)total_lanes; 
+    double expected = 0.0;
+    double q = 1.0 - p;
+   
+    const int MAX_T = 10000;
+    for (int t = 0; t < MAX_T; ++t) {
+        
+        double qpow = pow(q, (double)t);
+        double p_all_le_t = pow(1.0 - qpow, (double)cap_lanes);
+        double term = 1.0 - p_all_le_t;
+        expected += term;
+        if (term < 1e-14) break;
+    }
+
+    
+    unsigned int rng_seed = (unsigned int)time(NULL);
+    srand(rng_seed);
+
+    double sum_rounds = 0.0;
+    for (int trial = 0; trial < TRIALS; ++trial) {
+        int hit_count = 0;
+        unsigned char hit[25] = {0};
+        int rounds = 0;
+        while (hit_count < cap_lanes) {
+            ++rounds;
+            
+            for (int i = 0; i < cap_lanes; ++i) {
+                if (hit[i]) continue;
+               
+                double u = (double)rand() / ((double)RAND_MAX + 1.0);
+                if (u < p) {
+                    hit[i] = 1;
+                    hit_count++;
+                }
+            }
+        }
+        sum_rounds += (double)rounds;
+    }
+    double sim_mean = sum_rounds / (double)TRIALS;
+
+    printf("Keccak lanes total = %d, rate lanes = %d, capacity lanes = %d\n",
+           total_lanes, rate_lanes, cap_lanes);
+    printf("Per-round hit probability for a fixed capacity lane: p = %.6f\n\n", p);
+
+    printf("Analytic (numerical) expected rounds until all capacity lanes hit: %.12f\n", expected);
+    printf("Monte Carlo estimate (TRIALS = %d): %.12f\n", TRIALS, sim_mean);
+
+    return 0;
+}
