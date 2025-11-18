@@ -1,0 +1,126 @@
+
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
+
+#define MAX_TEXT 10000
+#define NUM_CANDIDATES 200   // number of key variations to test
+#define ALPHABET 26
+char englishRank[26] = {
+    'E','T','A','O','I','N','S','H','R','D','L','C','U','M','W','F','G','Y','P','B','V','K','J','X','Q','Z'
+};
+
+typedef struct {
+    double score;
+    char text[MAX_TEXT];
+} Candidate;
+double chiSquareScore(char *text) {
+    int count[26] = {0};
+    int total = 0;
+
+    for (int i = 0; text[i]; i++) {
+        if (isalpha(text[i])) {
+            count[toupper(text[i]) - 'A']++;
+            total++;
+        }
+    }
+    if (total == 0) return 1e9;
+
+    double englishFreq[26] = {
+        12.02, 9.10, 8.12, 7.68, 7.31, 6.95, 6.28, 6.02,
+        5.92, 4.32, 3.98, 3.61, 2.61, 2.30, 2.11, 2.03,
+        1.82, 1.49, 1.11, 0.69, 0.17, 0.11, 0.10, 0.07, 0.02, 0.01
+    };
+
+    double score = 0.0;
+    for (int i = 0; i < 26; i++) {
+        double observed = (count[i] * 100.0) / total;
+        double expected = englishFreq[i];
+        score += ((observed - expected) * (observed - expected)) / expected;
+    }
+    return score;
+}
+void decryptWithKey(char *cipher, char plain[], char keyMap[]) {
+    for (int i = 0; cipher[i]; i++) {
+        if (isalpha(cipher[i])) {
+            char c = toupper(cipher[i]);
+            plain[i] = keyMap[c - 'A'];
+        } else {
+            plain[i] = cipher[i];
+        }
+    }
+}
+void sortCandidates(Candidate arr[], int n) {
+    for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (arr[i].score > arr[j].score) {
+                Candidate temp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = temp;
+            }
+        }
+    }
+}
+
+int main() {
+    char cipher[MAX_TEXT];
+    printf("Enter ciphertext: ");
+    fgets(cipher, MAX_TEXT, stdin);
+
+    int freq[26] = {0};
+    int totalLetters = 0;
+
+    // Count frequency of ciphertext letters
+    for (int i = 0; cipher[i]; i++) {
+        if (isalpha(cipher[i])) {
+            freq[toupper(cipher[i]) - 'A']++;
+            totalLetters++;
+        }
+    }
+    int order[26];
+    for (int i = 0; i < 26; i++) order[i] = i;
+
+    for (int i = 0; i < 26; i++) {
+        for (int j = i + 1; j < 26; j++) {
+            if (freq[order[j]] > freq[order[i]]) {
+                int temp = order[i];
+                order[i] = order[j];
+                order[j] = temp;
+            }
+        }
+    }
+    Candidate candidates[NUM_CANDIDATES];
+    int candidateCount = 0;
+
+    for (int shift = 0; shift < 26 && candidateCount < NUM_CANDIDATES; shift++) {
+        
+        char keyMap[26];
+        for (int i = 0; i < 26; i++) {
+            int ct = order[(i + shift) % 26];
+            keyMap[ct] = englishRank[i];
+        }
+
+        char plain[MAX_TEXT];
+        decryptWithKey(cipher, plain, keyMap);
+
+        candidates[candidateCount].score = chiSquareScore(plain);
+        strcpy(candidates[candidateCount].text, plain);
+        candidateCount++;
+    }
+
+    sortCandidates(candidates, candidateCount);
+
+    int topN;
+    printf("How many top probable plaintexts to show? ");
+    scanf("%d", &topN);
+
+    printf("\n=========== TOP %d POSSIBLE PLAINTEXTS ===========\n\n", topN);
+
+    for (int i = 0; i < topN && i < candidateCount; i++) {
+        printf("Rank %d | Score = %.2f\n%s\n\n", 
+               i + 1, candidates[i].score, candidates[i].text);
+    }
+
+    return 0;
+}
