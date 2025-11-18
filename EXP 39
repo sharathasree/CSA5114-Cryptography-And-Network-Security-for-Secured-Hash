@@ -1,0 +1,86 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX_TEXT 10000
+double englishFreq[26] = {
+    8.167, 1.492, 2.782, 4.253, 12.702,
+    2.228, 2.015, 6.094, 6.966, 0.153,
+    0.772, 4.025, 2.406, 6.749, 7.507,
+    1.929, 0.095, 5.987, 6.327, 9.056,
+    2.758, 0.978, 2.360, 0.150, 1.974, 0.074
+};
+double computeScore(char *text) {
+    int count[26] = {0};
+    int total = 0;
+
+    for (int i = 0; text[i]; i++) {
+        if (isalpha(text[i])) {
+            count[toupper(text[i]) - 'A']++;
+            total++;
+        }
+    }
+
+    if (total == 0) return 0.0;
+
+    double score = 0.0;
+
+    for (int i = 0; i < 26; i++) {
+        double freq = (count[i] * 100.0) / total;
+        score += freq * englishFreq[i];  // dot product scoring
+    }
+
+    return score;
+}
+
+void decrypt(char *cipher, char *plain, int key) {
+    for (int i = 0; cipher[i]; i++) {
+        if (isalpha(cipher[i])) {
+            char base = isupper(cipher[i]) ? 'A' : 'a';
+            plain[i] = ((cipher[i] - base - key + 26) % 26) + base;
+        } else {
+            plain[i] = cipher[i];
+        }
+    }
+}
+typedef struct {
+    int key;
+    double score;
+    char text[MAX_TEXT];
+} Result;
+
+int main() {
+    char cipher[MAX_TEXT];
+    Result results[26];
+    int topN;
+
+    printf("Enter ciphertext: ");
+    fgets(cipher, MAX_TEXT, stdin);
+
+    printf("Enter how many top plaintexts to show (e.g., 10): ");
+    scanf("%d", &topN);
+    for (int key = 0; key < 26; key++) {
+        results[key].key = key;
+
+        decrypt(cipher, results[key].text, key);
+
+        results[key].score = computeScore(results[key].text);
+    }
+
+    for (int i = 0; i < 26; i++) {
+        for (int j = i + 1; j < 26; j++) {
+            if (results[j].score > results[i].score) {
+                Result temp = results[i];
+                results[i] = results[j];
+                results[j] = temp;
+            }
+        }
+    }
+    printf("\n=== Top %d Possible Plaintexts ===\n\n", topN);
+    for (int i = 0; i < topN && i < 26; i++) {
+        printf("Rank %d | Key = %2d | Score = %.2f\n", i+1, results[i].key, results[i].score);
+        printf("Plaintext: %s\n\n", results[i].text);
+    }
+
+    return 0;
+}
