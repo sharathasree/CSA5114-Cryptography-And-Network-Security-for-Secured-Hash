@@ -1,0 +1,59 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+int64_t extended_gcd(int64_t a, int64_t b, int64_t *x, int64_t *y) {
+    if (b == 0) { *x = 1; *y = 0; return a; }
+    int64_t x1, y1;
+    int64_t g = extended_gcd(b, a % b, &x1, &y1);
+    *x = y1;
+    *y = x1 - (a / b) * y1;
+    return g;
+}
+int try_recover_phi(uint64_t e, uint64_t d, uint64_t n) {
+    uint64_t ed_minus_1 = e * d - 1;
+
+    printf("Trying to recover φ(n)...\n");
+    for (uint64_t k = 1; k <= ed_minus_1; k++) {
+        if (ed_minus_1 % k != 0) continue;
+        uint64_t phi = ed_minus_1 / k;
+        int64_t b = n - phi + 1;
+        int64_t disc = b*b - 4*n;
+        if (disc < 0) continue;
+        uint64_t sq = (uint64_t)sqrt((double)disc);
+        if (sq * sq != (uint64_t)disc) continue;
+
+        uint64_t p = (b + sq) / 2;
+        uint64_t q = n / p;
+
+        if (p*q == n) {
+            printf("Recovered φ(n) = %llu\n", (unsigned long long)phi);
+            printf("Recovered primes: p = %llu, q = %llu\n",
+                   (unsigned long long)p, (unsigned long long)q);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int main() {
+    
+    uint64_t n = 3599;   
+    uint64_t e = 31;     
+    uint64_t d = 287;    
+
+    printf("Bob's RSA parameters:\n");
+    printf("n = %llu\n", (unsigned long long)n);
+    printf("e = %llu\n", (unsigned long long)e);
+    printf("Leaked d = %llu\n\n", (unsigned long long)d);
+
+    if (!try_recover_phi(e, d, n)) {
+        printf("Could not recover phi(n)\n");
+        return 0;
+    }
+
+    printf("\nConclusion:\n");
+    printf("Once d leaks, φ(n) and {p, q} are recoverable.\n");
+    printf("Therefore generating a new (e, d) using the SAME modulus n is NOT SAFE.\n");
+
+    return 0;
+}
